@@ -1,0 +1,32 @@
+Public Sub AutoTable()
+　　Dim conExcel As New Connection, conSQL As New Connection, rs As New Recordset, fieldDef As String, fieldStr As String, rsValue As String, fileName As String, tabName As String
+　　fileName = Application.GetOpenFilename("Excel files,*.xlsx;*.xls;*.csv", , "Select file")
+　　If fileName = "" Or fileName = "False" Then Exit Sub
+　　conSQL.Open B2CConnString
+　　Set wb = Workbooks.Open(fileName, False)
+　　conExcel.Open "Provider=Microsoft.Jet.OLEDB.4.0;Extended Properties=Excel 8.0;Data Source=" + fileName
+　　For Each ws In wb.Sheets
+　　　　tabName = Replace(Replace(Replace(Left(wb.Name, InStr(1, wb.Name, ".") - 1), " ", "_"), "(", "_"), ")", "_") + "_" + Replace(ws.Name, " ", "_")
+　　　　fieldDef = "ID int identity(1,1) not null"
+　　　　fieldStr = ""
+　　　　rs.Open "SELECT * FROM [" + ws.Name + "$]", conExcel, 1, 1
+　　　　rs.MoveFirst
+　　　　For i = 0 To rs.Fields.Count - 1
+　　　　　　fieldDef = fieldDef + "," + Replace(rs.Fields(i).Name, " ", "_") + " nvarchar(800) null"
+　　　　　　fieldStr = IIf(fieldStr = "", "", fieldStr + ",") + Replace(rs.Fields(i).Name, " ", "_")
+　　　　Next
+　　　　conSQL.Execute "IF OBJECT_ID('" + tabName + "') IS NOT NULL DROP TABLE " + tabName + " CREATE TABLE " + tabName + "(" + fieldDef + ")"
+　　　　Do While Not rs.EOF
+　　　　　　rsValue = ""
+　　　　　　For i = 0 To rs.Fields.Count - 1
+　　　　　　　　rsValue = IIf(rsValue = "", "", rsValue + ",") + "'" + Replace(Nz(rs(i), ""), "'", "''") + "'"
+　　　　　　Next
+　　　　　　conSQL.Execute "INSERT INTO " + tabName + "(" + fieldStr + ") VALUES (" + rsValue + ")"
+　　　　　　rs.MoveNext
+　　　　Loop
+　　　　rs.Close
+　　Next
+　　wb.Close False
+　　Set wb = Nothing
+　　Set ws = Nothing
+End Sub
