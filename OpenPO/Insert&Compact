@@ -1,0 +1,98 @@
+Sub 复制xls()
+    Dim XPath As String
+    
+    XPath = FileLoc()
+    If XPath = "" Then Exit Sub
+    
+    Application.ScreenUpdating = False '关闭屏幕刷新
+    
+    '改格式
+    Set Wb2 = Workbooks.Open(XPath, , True)
+    Wb2.Sheets(1).Activate
+    
+    Sheet2.Activate
+    Sheet2.Cells.Delete
+    Wb2.Sheets(1).Cells.Copy ThisWorkbook.Sheets(2).Range("A:A")
+    ThisWorkbook.Sheets(2).Columns("C:C").NumberFormatLocal = "yyyy/m/d"
+    ThisWorkbook.Sheets(2).Columns("O:O").NumberFormatLocal = "yyyy/m/d"
+    ThisWorkbook.Sheets(2).Columns("P:P").NumberFormatLocal = "yyyy/m/d"
+    ThisWorkbook.Sheets(2).Columns("U:U").NumberFormatLocal = "yyyy/m/d"
+    
+    Wb2.Close (False)
+    ThisWorkbook.Save
+    'MsgBox "Done"
+    
+    
+    Set cnn = CreateObject("ADODB.connection") '创建ado对象
+    
+    Dim mypath As String
+    mypath = ThisWorkbook.Path & "\Oracle_Open_PO.accdb"
+    cnn.Open "Provider=Microsoft.Ace.OLEDB.12.0;Data Source=" & mypath
+    
+    DataPath = ThisWorkbook.Path & "\" & ThisWorkbook.Name
+
+    sql1 = "delete * from [MTO_PO]"
+    sql2 = "insert into [MTO_PO] select " & _
+            "[PO_Number],[PO_line_num],[creation_date],[item_number],[item_revision],[item_description],[quantity],[quantity_accepted],[quantity_billed]," & _
+            "[quantity_cancelled],[quantity_received],[quantity_rejected],[unit_price],[amount],[Promise Date],[Need by Date],[Invoice Match Option]," & _
+            "[Buyer_Name],[cancel_flag],[closure_status],[closed_date],[type],[vendor_name],[vendor_site_code],[currency_code]" & _
+            "from [Excel 12.0;Database=" & DataPath & "].[Sheet2$]"
+    cnn.Execute sql1
+    cnn.Execute sql2
+    cnn.Close
+    Set cnn = Nothing
+
+    Sheet1.Activate
+    Sheet1.Cells(2, 1) = Now()
+    Sheet1.Cells(2, 2) = Environ("username")
+    ThisWorkbook.Save
+    Application.ScreenUpdating = True '开启屏幕刷新
+    Call RunCompact
+    MsgBox "数据已更新", vbInformation, "更新数据"
+    
+    
+End Sub
+
+
+Function FileLoc()
+    'Dim strFolder As String
+    Dim FilePath As String
+    'FileDialogObject注意是文件选择
+    Set FileDialogObject = Application.FileDialog(msoFileDialogFilePicker)
+    '配置对话框
+    With FileDialogObject
+        .Title = "请选择文件"
+        .InitialFileName = ThisWorkbook.Path
+        '.AllowMultiSelect = True
+    End With
+    FileDialogObject.Show
+    
+    If FileDialogObject.SelectedItems.Count = 0 Then
+        Exit Function
+    Else
+        Set strFolder = FileDialogObject.SelectedItems
+    End If
+    
+    FilePath = strFolder(1)
+    FileLoc = FilePath
+
+    
+
+End Function
+
+Sub RunCompact()
+    strSourcePath = "R:\Supply_Chain\04_Purchasing\03_MTO Open PO summary\Stephen\Oracle_Open _PO_MTO\Oracle_Open_PO.accdb"
+    strDestPath = "R:\Supply_Chain\04_Purchasing\03_MTO Open PO summary\Stephen\Oracle_Open _PO_MTO\Oracle_Open_PO_TEMP.accdb"
+
+    Dim JRO As JRO.JetEngine
+    Set JRO = New JRO.JetEngine
+    Dim strS As String
+    Dim strT As String
+    strS = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source= " & strSourcePath
+    strT = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source= " & strDestPath & ";Jet OLEDB:Engine Type=5"
+    JRO.CompactDatabase strS, strT
+    
+    Kill strSourcePath
+    FileCopy strDestPath, strSourcePath
+    Kill strDestPath
+End Sub
