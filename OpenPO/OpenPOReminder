@@ -1,0 +1,130 @@
+Sub MTO_Reminder_Select()
+    Sheet5.Cells.Clear
+    Str_coon1 = "HDR=yes;IMEX=1';Data Source =" & ThisWorkbook.Path & "\" & ThisWorkbook.Name
+    SheetName = Sheet1.Name
+    
+    RS1 = Sheet1.Range("A65536").End(xlUp).Row
+
+    StrSQL1_1 = "SELECT [Vendor_Name],[PO],[Item],[Item_Desc],[Due],[Creation],[Promised],[Remark] FROM [" & SheetName & "$A1:P" & RS1 & "]" _
+    & " where DateDiff('d',[Promised] ,date())>-14 or [Promised] is null"
+
+    'where DateDiff('d',date() ,[Promised])>10 or [Promised] is null
+    'where DateDiff('d',[PROMISED_D] ,date())>-10 or [PROMISED_D] is null
+
+    StrSQL1_2 = "SELECT b.[Vendor],a.[PO],a.[Item],a.[Item_Desc],a.[Due],a.[Creation],a.[Promised],a.[Remark],b.Mail FROM (" & StrSQL1_1 & ") as a " _
+    & "left join [Alias$] as b on a.[Vendor_Name]=b.[Vendor_Name]"
+
+    SQLARR1 = GET_SQL_To_Arr_Xlsx(StrSQL1_2, Str_coon1, True)
+    Sheet5.Range("A1").Resize(UBound(SQLARR1, 1) + 1, UBound(SQLARR1, 2) + 1).Value = SQLARR1
+    
+    'Font
+    Sheet5.Cells.Select
+    With Selection.Font
+        .Name = "Calibri"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+      
+    MsgBox "Done"
+End Sub
+
+Sub SendMail()
+    R1 = Sheet5.Range("A65536").End(xlUp).Row
+    If R1 = 1 Then
+        MsgBox "give me some line,come on,man"
+        Exit Sub
+    End If
+    Dim X As String
+    X = "A1:I" & R1
+    
+    If MsgBox(X & " would be sent,continue?", vbYesNo) <> vbYes Then Exit Sub
+
+    Str_coon2 = "HDR=yes;IMEX=1';Data Source =" & ThisWorkbook.Path & "\" & ThisWorkbook.Name
+    StrSQL1_2 = "SELECT [Vendor] FROM [Reminder$" & X & "]" _
+    & " group by [Vendor]"
+    SQLARR2 = GET_SQL_To_Arr_Xlsx(StrSQL1_2, Str_coon2, True)
+    
+    Application.ScreenUpdating = False
+    'UBound(SQLARR2, 1)
+    For i = 1 To UBound(SQLARR2, 1)
+            StrSQL2_1 = "SELECT * FROM [Reminder$" & X & "]" _
+            & " where [Vendor]='" & SQLARR2(i, 0) & "'"
+            SQLARR3 = GET_SQL_To_Arr_Xlsx(StrSQL2_1, Str_coon2, True)
+
+            Call SendEmailByOutlook(SQLARR3)
+    Next
+    Application.ScreenUpdating = True
+
+    MsgBox UBound(SQLARR2, 1) & " be sent."
+End Sub
+
+'Outlook
+Sub SendEmailByOutlook(ByRef SQLARR)
+    On Error Resume Next
+    Dim objOutlook As New Outlook.Application
+    Dim objMail As MailItem
+    Set objOutlook = New Outlook.Application
+
+    Dim rng1 As Range, rng2 As Range
+
+        Set objMail = objOutlook.CreateItem(olMailItem)
+        With objMail
+            '.To = "Stephen.Shao@actuant.com"
+            
+            .To = SQLARR(1, 8)
+            .CC = Sheet7.Cells(6, 2)
+            
+            .Subject = Sheet7.Cells(1, 2) & SQLARR(1, 0)
+            
+            msg = "<P><font style='font-family:Calibri,微软雅黑;font-size:10.5pt;color:#1F497D'>" & _
+            "<br>" & Sheet7.Cells(2, 2) & "" & _
+            "<br>" & Sheet7.Cells(3, 2) & "" & _
+            "<br>" & Sheet7.Cells(4, 2) & "" & _
+            "<br>" & Sheet7.Cells(5, 2) & "" & _
+            "</font></p>" & _
+            "<table border='1' cellspacing='0' cellpadding='3' style='font-family:Calibri,微软雅黑;font-size:10.5pt;color:#1F497D'>" & _
+            "<tr>" & _
+                    "<th align='right'>" & SQLARR(0, 0) & "</th>" & _
+                    "<th align='right'>" & SQLARR(0, 1) & "</th>" & _
+                    "<th align='right'>" & SQLARR(0, 2) & "</th>" & _
+                    "<th align='right'>" & SQLARR(0, 3) & "</th>" & _
+                    "<th align='right'>" & SQLARR(0, 4) & "</th>" & _
+                    "<th align='right'>" & SQLARR(0, 5) & "</th>" & _
+                    "<th align='right'>" & SQLARR(0, 6) & "</th>" & _
+                    "<th align='right'>最新交期</th>" & _
+            "</tr>"
+              
+            For i = 1 To UBound(SQLARR, 1)
+                msg = msg & _
+                "<tr>" & _
+                    "<td align='right'>" & SQLARR(i, 0) & "</td>" & _
+                    "<td align='right'>" & SQLARR(i, 1) & "</td>" & _
+                    "<td align='right'>" & SQLARR(i, 2) & "</td>" & _
+                    "<td align='right'>" & SQLARR(i, 3) & "</td>" & _
+                    "<td align='right'>" & SQLARR(i, 4) & "</td>" & _
+                    "<td align='right'>" & SQLARR(i, 5) & "</td>" & _
+                    "<td align='right'>" & SQLARR(i, 6) & "</td>" & _
+                    "<td align='right'></td>" & _
+                "</tr>"
+            Next
+                msg = msg & "</table>" & _
+                "<font style='font-family:Calibri,微软雅黑;font-size:10.5pt;color:#1F497D'>" & _
+                "<br>Thanks," & _
+                "<br>" & Environ("username") & "" & _
+                "<br>Actuant (China) Industries Co., Ltd" & _
+                "</font>"
+            .HTMLBody = msg
+                
+            .Send
+        End With
+
+    Set objMail = Nothing
+    Set objOutlook = Nothing
+End Sub
