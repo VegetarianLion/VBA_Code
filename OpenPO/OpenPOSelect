@@ -1,0 +1,165 @@
+'***2018/7/1***
+'   Any issues pls let me know.
+'   Stephen.Shao
+'   +86 512 53287558
+
+'***2019/8/22***
+'Last commit,bye.
+'        Stephen
+
+Sub MTO_Summary_Flash()
+    Application.ScreenUpdating = False
+
+    Str_coon1 = "Data Source =R:\Supply_Chain\04_Purchasing\03_MTO Open PO summary\Stephen\Oracle_Open _PO_MTO\Oracle_Open_PO.accdb"
+    
+    StrSQL1_1 = "SELECT [vendor_name] as Vendor_Name,iif(true,'','') as Vendor,[Buyer_Name] as Assembly_Item,[PO_Number] as PO,[PO_line_num] as L,[item_number] as Item,[item_description] as Item_Desc,[quantity] as Qty,([quantity]-[quantity_received]) as Due," _
+    & "[creation_date] as Creation,[Need by Date] as Demand,iif(true,'','') as Promised,iif(true,'','') as Remark,round([unit_price]) as Unit_Price,[Promise Date]-[Need by Date] as Delay,[Need by Date]-[creation_date] as Need_Time  " _
+    & "FROM [MTO_PO] where [Buyer_Name] in ('ACI10,','ACI11,')" _
+    & " order by [vendor_name],[PO_Number] asc"
+    
+    'if you want to block some pack order use this
+    'and [vendor_name] not like '%PACK%'
+    
+    SQLARR1 = GET_SQL_To_Arr_Access(StrSQL1_1, Str_coon1, True)
+    
+    Dim dic1 As Object
+    Set dic1 = CreateObject("Scripting.Dictionary")
+    RS2 = Sheet2.Range("A65536").End(xlUp).Row
+    For i = 2 To RS2
+        dic1.Item(Sheet2.Cells(i, "A") & "") = Sheet2.Cells(i, "B") & ""
+    Next
+    
+    Dim dic2 As Object
+    Set dic2 = CreateObject("Scripting.Dictionary")
+    Dim dic3 As Object
+    Set dic3 = CreateObject("Scripting.Dictionary")
+    RS4 = Sheet4.Range("A65536").End(xlUp).Row
+    For i = 2 To RS4
+        dic2.Item(Sheet4.Cells(i, "A") & "_" & Sheet4.Cells(i, "B")) = Sheet4.Cells(i, "C") & ""
+        dic3.Item(Sheet4.Cells(i, "A") & "_" & Sheet4.Cells(i, "B")) = Sheet4.Cells(i, "D") & ""
+    Next
+    
+    For i = 1 To UBound(SQLARR1, 1)
+        If dic1.exists(SQLARR1(i, 0)) = True Then
+            SQLARR1(i, 1) = dic1.Item(SQLARR1(i, 0))
+        Else
+            SQLARR1(i, 1) = ""
+        End If
+        
+        If dic2.exists(SQLARR1(i, 3) & "_" & SQLARR1(i, 4)) = True Then
+            SQLARR1(i, 11) = dic2.Item(SQLARR1(i, 3) & "_" & SQLARR1(i, 4))
+        Else
+            SQLARR1(i, 11) = ""
+        End If
+        
+        If dic3.exists(SQLARR1(i, 3) & "_" & SQLARR1(i, 4)) = True Then
+            SQLARR1(i, 12) = dic3.Item(SQLARR1(i, 3) & "_" & SQLARR1(i, 4))
+        Else
+            SQLARR1(i, 12) = ""
+        End If
+    Next
+    
+    Sheet1.Cells.Clear
+    Sheet1.Range("A1").Resize(UBound(SQLARR1, 1) + 1, UBound(SQLARR1, 2) + 1).Value = SQLARR1
+    
+
+    Columns("B:F").EntireColumn.AutoFit
+    Columns("H:L").EntireColumn.AutoFit
+    Columns("G:G").ColumnWidth = 25
+    Columns("M:M").ColumnWidth = 20
+    
+    Sheet1.Range("C2").Formula = "=IFERROR(INDEX(Assembly!A:A,MATCH(F2,Assembly!B:B,0)),""?"")"
+    Sheet1.Range("C2").AutoFill Destination:=Sheet1.Range("C2:C" & UBound(SQLARR1, 1) + 1)
+    
+    'Select
+    Sheet1.Activate
+    Sheet1.Rows("1:1").Select
+    Selection.AutoFilter
+    
+    'Font
+    Sheet1.Cells.Select
+    With Selection.Font
+        .Name = "Calibri"
+        .Size = 11
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    
+    'Bold
+    Sheet1.Rows("1:1").Select
+    Selection.Font.Bold = True
+    
+    'Conditional format
+    Sheet1.Range("L2:L" & UBound(SQLARR1, 1) + 1).Select
+    Selection.FormatConditions.Add Type:=xlExpression, Formula1:= _
+        "=DAYS360(TODAY(),$L2)<=10"
+    Selection.FormatConditions(Selection.FormatConditions.Count).SetFirstPriority
+    With Selection.FormatConditions(1).Interior
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent6
+        .TintAndShade = 0.599963377788629
+    End With
+    
+    'Avoid someone key in something like "8-13" and "2018-8" and "8"
+    'Column L should be standard yyyy/mm/dd
+    Columns("L:L").Select
+    With Selection.Validation
+        .Delete
+        .Add Type:=xlValidateDate, AlertStyle:=xlValidAlertStop, Operator:= _
+        xlGreater, Formula1:="1/1/2000"
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .InputTitle = ""
+        .ErrorTitle = ""
+        .InputMessage = ""
+        .ErrorMessage = ""
+        .IMEMode = xlIMEModeNoControl
+        .ShowInput = True
+        .ShowError = True
+    End With
+    
+    ThisWorkbook.Save
+    Application.ScreenUpdating = True
+End Sub
+
+Function FileLoc()
+    Dim FilePath As String
+    Set FileDialogObject = Application.FileDialog(msoFileDialogFilePicker)
+
+    With FileDialogObject
+        .Title = "Pls choose file."
+        .InitialFileName = ThisWorkbook.Path
+        '.AllowMultiSelect = True
+    End With
+    FileDialogObject.Show
+    
+    If FileDialogObject.SelectedItems.Count = 0 Then
+        Exit Function
+    Else
+        Set strFolder = FileDialogObject.SelectedItems
+    End If
+    
+    FilePath = strFolder(1)
+    FileLoc = FilePath
+End Function
+
+Sub Archive()
+    Sheet4.Cells.Clear
+    Sheet1.Range("D:D").Copy Sheet4.Range("A:A")
+    Sheet1.Range("E:E").Copy Sheet4.Range("B:B")
+    Sheet1.Range("L:L").Copy Sheet4.Range("C:C")
+    Sheet1.Range("M:M").Copy Sheet4.Range("D:D")
+    Sheet4.Cells.Select
+    Selection.FormatConditions.Delete
+End Sub
+
+Sub Pivot_Flash()
+    Sheet6.Activate
+    ActiveWorkbook.RefreshAll
+End Sub
