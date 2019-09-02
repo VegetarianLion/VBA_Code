@@ -1,0 +1,141 @@
+Public s As New Collection
+Dim dic1 As Object
+Dim dic2 As Object
+Dim a As Integer
+
+
+Public Sub Delayms(lngTime As Long)
+    Dim StartTime As Single
+    Dim CostTime As Single
+    StartTime = Timer
+     
+    Do While (Timer - StartTime) * 1000 < lngTime
+        DoEvents
+    Loop
+End Sub
+
+Sub rrnndd()
+    Call CheckFlag
+
+    If s.Count = 0 Then
+        MsgBox "奖池名单已抽空，请重新添加"
+        Exit Sub
+    End If
+    
+    Dim n As String
+    If OptionButton1.Value = True Then
+        n = "一等奖"
+        
+            If TextBox1.Value = 0 Then
+                MsgBox "没奖了"
+                Exit Sub
+            Else
+                TextBox1.Value = TextBox1.Value - 1
+            End If
+    ElseIf OptionButton2.Value = True Then
+        n = "二等奖"
+        
+            If TextBox2.Value = 0 Then
+                MsgBox "没奖了"
+                Exit Sub
+            Else
+                TextBox2.Value = TextBox2.Value - 1
+            End If
+    ElseIf OptionButton3.Value = True Then
+        n = "三等奖"
+            If TextBox3.Value = 0 Then
+                MsgBox "没奖了"
+                Exit Sub
+            Else
+                TextBox3.Value = TextBox3.Value - 1
+            End If
+    Else
+        MsgBox "没有选中奖"
+        Exit Sub
+    End If
+    
+    a = 0
+    
+    
+Randomize
+10:
+    MyValue = Int((s.Count * Rnd) + 1)
+    With UserForm1
+        '.Label1.Caption = s(MyValue)
+        
+        Me.Controls("Label" & s(MyValue)).Caption = n
+        Delayms 30
+        
+        If a = 1 Then
+            Mykey = s(MyValue)
+            Dim Name As String
+            Name = dic1(Mykey)
+            MsgBox "恭喜 " & Name & " 中奖"
+            Me.Controls("Label" & s(MyValue)).Caption = n
+
+            Worksheets(2).Rows(dic2(Mykey)).Delete
+            Exit Sub
+        Else
+            Me.Controls("Label" & s(MyValue)).Caption = ""
+        End If
+        
+    End With
+    
+    'DoEvents
+    
+    
+GoTo 10
+End Sub
+
+Private Sub CommandButton1_Click()
+    Call rrnndd
+End Sub
+Private Sub CommandButton2_Click()
+    If s.Count = 0 Then
+        MsgBox "奖池名单已抽空，请重新添加"
+        Exit Sub
+    Else
+        a = 1
+    End If
+End Sub
+
+
+Private Sub CommandButton3_Click()
+    Call Start
+End Sub
+
+Sub CheckFlag()
+    If Worksheets(2).Range("A2") <> "" Then
+        Set dic1 = CreateObject("scripting.dictionary")    '存储-人名
+        Set dic2 = CreateObject("scripting.dictionary")    '存储-对应行数
+
+        r = Worksheets(2).Cells(Rows.Count, 1).End(xlUp).Row
+        arr = Worksheets(2).Range("A1:C" & r)
+        Set s = Nothing
+        For i = 2 To UBound(arr, 1)
+            dic1(arr(i, 2)) = arr(i, 1)
+            dic2(arr(i, 2)) = i
+            For j = 1 To CInt(arr(i, 3))
+                s.Add arr(i, 2)
+            Next
+        Next
+
+        Randomize
+
+    Else
+        MsgBox "！！！！请导入信息！！！！"
+    End If
+End Sub
+
+
+Private Sub UserForm_Initialize()
+    TextBox1.Value = 1
+    TextBox2.Value = 2
+    TextBox3.Value = 3
+End Sub
+
+Sub Start()
+    r = Worksheets(1).Cells(Rows.Count, 1).End(xlUp).Row
+    Worksheets(2).Range("A1:C65535").Clear
+    Worksheets(1).Range("a1:c" & r).Copy Worksheets(2).[a1]
+End Sub
